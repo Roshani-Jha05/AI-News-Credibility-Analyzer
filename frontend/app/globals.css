@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* ============================================================
+   globals.css — NewsVeil global styles
+   Theme: Black & Red
+   Font: Plus Jakarta Sans via --font-jakarta
+   Tailwind v4: dark mode is class-based (toggled on <html>).
+   ============================================================ */
+
+/* Enable class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f4f4f5;   /* zinc-100 */
+  --foreground: #09090b;   /* zinc-950 */
+  font-size: 16px;         /* base size — up from browser default 14px */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.01em;  /* slight tightening for Jakarta's wider glyphs */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out both;
+}
