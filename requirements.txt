@@ -1,0 +1,10 @@
+fastapi==0.141.1
+uvicorn==0.52.4
+torch==2.13.0
+transformers==5.15.0
+tokenizers==0.22.2
+safetensors==0.8.0
+numpy==2.5.2
+pytest==9.1.1
+beautifulsoup4==4.15.0
+httpx==0.28.1
