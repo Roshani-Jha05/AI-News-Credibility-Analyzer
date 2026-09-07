@@ -216,3 +216,51 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+model_testing/venv/
+
+# Environment variables
+.env
+.env.*
+
+# Hugging Face / ML caches
+.cache/
+.cache/**
+huggingface/
+models/
+*.bin
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+# AI detection local evaluation/testing artifacts
+ai_engine/
+evaluation/
+model_testing/
+tests/
+
+# Local AI detection evaluation scripts
+backend/app/ai_detection/evaluate_*.py
+backend/app/ai_detection/test_*.py
+backend/app/ai_detection/combined_detector.py
