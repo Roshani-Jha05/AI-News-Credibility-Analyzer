@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sun, Moon, User, Home, LogOut, Newspaper } from 'lucide-react';
+import { Sun, Moon, User, Home, LogOut } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
 export default function Navbar() {
@@ -14,8 +14,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/',        label: 'Verify',  icon: Home },
-    { href: '/news',    label: 'News',    icon: Newspaper },
+    { href: '/', label: 'Verify', icon: Home },
     { href: '/profile', label: 'Profile', icon: User },
   ];
 
@@ -35,14 +34,16 @@ export default function Navbar() {
         <div className="flex items-center gap-1">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
+
             return (
               <Link
                 key={href}
                 href={href}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                  ${isActive
-                    ? 'bg-red-600 text-white'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
+                  ${
+                    isActive
+                      ? 'bg-red-600 text-white'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800/60'
                   }`}
               >
                 <Icon size={15} />
