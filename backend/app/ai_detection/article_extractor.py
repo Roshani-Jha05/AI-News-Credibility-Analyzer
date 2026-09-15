@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import socket
 from urllib.parse import urlparse
 
@@ -10,8 +11,7 @@ from bs4 import BeautifulSoup
 
 MAX_RESPONSE_SIZE = 5 * 1024 * 1024  # 5 MB
 REQUEST_TIMEOUT = 15.0
-
-MIN_ARTICLE_WORDS = 20
+MIN_ARTICLE_WORDS = 50
 
 
 class ArticleExtractionError(Exception):
@@ -40,7 +40,6 @@ def _validate_url(url: str) -> None:
             "Invalid URL hostname."
         )
 
-    # Prevent requests to localhost/private network addresses.
     try:
         addresses = socket.getaddrinfo(
             hostname,
@@ -81,13 +80,110 @@ def _clean_text(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def _is_long_enough(text: str) -> bool:
+    """Check whether extracted text meets the minimum word requirement."""
+
+    return len(text.split()) >= MIN_ARTICLE_WORDS
+
+
+def _extract_from_json_ld(soup: BeautifulSoup) -> str:
+    """
+    Try extracting article text from JSON-LD structured data.
+
+    Many news websites expose article content through a
+    NewsArticle / Article JSON-LD object.
+    """
+
+    candidates = []
+
+    scripts = soup.find_all(
+        "script",
+        type="application/ld+json"
+    )
+
+    for script in scripts:
+        raw = script.string
+
+        if not raw:
+            continue
+
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        objects = []
+
+        if isinstance(data, dict):
+            if "@graph" in data and isinstance(data["@graph"], list):
+                objects.extend(data["@graph"])
+            else:
+                objects.append(data)
+
+        elif isinstance(data, list):
+            objects.extend(data)
+
+        for obj in objects:
+            if not isinstance(obj, dict):
+                continue
+
+            article_type = obj.get("@type")
+
+            if isinstance(article_type, list):
+                article_types = article_type
+            else:
+                article_types = [article_type]
+
+            is_article = any(
+                article_type_name in {
+                    "Article",
+                    "NewsArticle",
+                    "ReportageNewsArticle",
+                    "BlogPosting",
+                }
+                for article_type_name in article_types
+            )
+
+            if not is_article:
+                continue
+
+            article_body = obj.get("articleBody")
+
+            if isinstance(article_body, str):
+                cleaned = _clean_text(article_body)
+
+                if cleaned:
+                    candidates.append(cleaned)
+
+    if not candidates:
+        return ""
+
+    candidates.sort(
+        key=lambda text: len(text.split()),
+        reverse=True
+    )
+
+    return candidates[0]
+
+
 def _extract_from_html(html: str) -> str:
     """Extract the main article text from an HTML document."""
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove elements that commonly contain navigation,
-    # advertisements, scripts, styling, comments, etc.
+    # --------------------------------------------------------
+    # 1. Try JSON-LD BEFORE removing script elements.
+    # --------------------------------------------------------
+
+    json_ld_text = _extract_from_json_ld(soup)
+
+    if _is_long_enough(json_ld_text):
+        return json_ld_text
+
+    # --------------------------------------------------------
+    # 2. Remove elements that are not article content.
+    # --------------------------------------------------------
+
     for element in soup([
         "script",
         "style",
@@ -97,17 +193,87 @@ def _extract_from_html(html: str) -> str:
         "footer",
         "header",
         "aside",
-        "form"
+        "form",
+        "iframe",
     ]):
         element.decompose()
 
-    # First preference: semantic <article> element.
+    # --------------------------------------------------------
+    # 3. Try semantic <article>.
+    # --------------------------------------------------------
+
     article = soup.find("article")
 
     if article:
         paragraphs = article.find_all("p")
-    else:
-        paragraphs = soup.find_all("p")
+
+        extracted_paragraphs = []
+
+        for paragraph in paragraphs:
+            text = paragraph.get_text(" ", strip=True)
+
+            if len(text.split()) >= 5:
+                extracted_paragraphs.append(text)
+
+        text = _clean_text(
+            "\n".join(extracted_paragraphs)
+        )
+
+        if _is_long_enough(text):
+            return text
+
+    # --------------------------------------------------------
+    # 4. Try common article-content containers.
+    # --------------------------------------------------------
+
+    selectors = [
+        "[class*='article-body']",
+        "[class*='article_body']",
+        "[class*='articleBody']",
+        "[class*='article-content']",
+        "[class*='article_content']",
+        "[class*='articleContent']",
+        "[class*='story-body']",
+        "[class*='story_body']",
+        "[class*='storyBody']",
+        "[class*='story-content']",
+        "[class*='story_content']",
+        "[class*='storyContent']",
+        "[id*='article-body']",
+        "[id*='articleBody']",
+        "[id*='story-body']",
+        "[id*='storyBody']",
+    ]
+
+    for selector in selectors:
+
+        container = soup.select_one(selector)
+
+        if not container:
+            continue
+
+        paragraphs = container.find_all("p")
+
+        extracted_paragraphs = []
+
+        for paragraph in paragraphs:
+            text = paragraph.get_text(" ", strip=True)
+
+            if len(text.split()) >= 5:
+                extracted_paragraphs.append(text)
+
+        text = _clean_text(
+            "\n".join(extracted_paragraphs)
+        )
+
+        if _is_long_enough(text):
+            return text
+
+    # --------------------------------------------------------
+    # 5. Final fallback: all meaningful <p> elements.
+    # --------------------------------------------------------
+
+    paragraphs = soup.find_all("p")
 
     extracted_paragraphs = []
 
@@ -117,9 +283,9 @@ def _extract_from_html(html: str) -> str:
         if len(text.split()) >= 5:
             extracted_paragraphs.append(text)
 
-    text = _clean_text("\n".join(extracted_paragraphs))
-
-    return text
+    return _clean_text(
+        "\n".join(extracted_paragraphs)
+    )
 
 
 def extract_article_from_url(url: str) -> str:
@@ -135,7 +301,9 @@ def extract_article_from_url(url: str) -> str:
     url = url.strip()
 
     if not url:
-        raise ArticleExtractionError("URL cannot be empty.")
+        raise ArticleExtractionError(
+            "URL cannot be empty."
+        )
 
     _validate_url(url)
 
@@ -176,6 +344,7 @@ def extract_article_from_url(url: str) -> str:
                 total_size = 0
 
                 for chunk in response.iter_bytes():
+
                     total_size += len(chunk)
 
                     if total_size > MAX_RESPONSE_SIZE:
@@ -186,6 +355,8 @@ def extract_article_from_url(url: str) -> str:
                     chunks.append(chunk)
 
                 html = b"".join(chunks)
+
+                encoding = response.encoding or "utf-8"
 
     except ArticleExtractionError:
         raise
@@ -211,21 +382,29 @@ def extract_article_from_url(url: str) -> str:
             "An unexpected error occurred while fetching the webpage."
         )
 
-    # Decode using the server's declared encoding when possible.
-    encoding = response.encoding or "utf-8"
-
     try:
-        html_text = html.decode(encoding, errors="replace")
+        html_text = html.decode(
+            encoding,
+            errors="replace"
+        )
+
     except LookupError:
-        html_text = html.decode("utf-8", errors="replace")
+        html_text = html.decode(
+            "utf-8",
+            errors="replace"
+        )
 
-    article_text = _extract_from_html(html_text)
+    article_text = _extract_from_html(
+        html_text
+    )
 
-    word_count = len(article_text.split())
+    word_count = len(
+        article_text.split()
+    )
 
     if word_count < MIN_ARTICLE_WORDS:
         raise ArticleExtractionError(
-            "Could not extract enough article text from this URL."
+            "Could not extract at least 50 words from this URL."
         )
 
     return article_text

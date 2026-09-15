@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sun, Moon, User, Home, LogOut, Newspaper } from 'lucide-react';
+import { Sun, Moon, User, Home, LogOut } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
 export default function Navbar() {
@@ -15,7 +15,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/',        label: 'Verify',  icon: Home },
-    { href: '/news',    label: 'News',    icon: Newspaper },
+
     { href: '/profile', label: 'Profile', icon: User },
   ];
 

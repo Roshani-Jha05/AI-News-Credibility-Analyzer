@@ -264,3 +264,8 @@ tests/
 backend/app/ai_detection/evaluate_*.py
 backend/app/ai_detection/test_*.py
 backend/app/ai_detection/combined_detector.py
+
+# Next.js
+node_modules/
+.next/
+out/

@@ -9,12 +9,13 @@
 
 import { useState } from 'react';
 import { Link2, Loader2, ArrowRight } from 'lucide-react';
-import { MOCK_FACT_CHECK_RESULT, type FactCheckResult } from '@/lib/mockData';
+import type { AIAnalysisResult } from '@/lib/mockData';
+
 
 type InputMode = 'text' | 'url';
 
 interface FactCheckInputProps {
-  onResult: (result: FactCheckResult) => void;
+  onResult: (result: AIAnalysisResult) => void;
   isLoading: boolean;
   setIsLoading: (v: boolean) => void;
 }
@@ -34,15 +35,60 @@ export default function FactCheckInput({ onResult, isLoading, setIsLoading }: Fa
     setMode(val.trim() ? detectMode(val) : 'text');
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // NOTE (Phase 1): validation skipped — empty input still returns mock result.
-    // Phase 4 will restore real validation once the API is wired up.
-    setIsLoading(true);
-    await new Promise((res) => setTimeout(res, 1600));
-    onResult(MOCK_FACT_CHECK_RESULT);
+ async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+
+  const input = text.trim();
+
+  if (!input) {
+    alert('Please enter article text or a URL.');
+    return;
+  }
+
+  if (mode === 'text' && input.split(/\s+/).length < 20) {
+    alert('Please enter at least 20 words.');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const body =
+      mode === 'url'
+        ? { url: input }
+        : { text: input };
+
+    const response = await fetch('http://127.0.0.1:8000/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        typeof data?.detail === 'string'
+          ? data.detail
+          : 'The AI analysis request failed.'
+      );
+    }
+
+    onResult(data as AIAnalysisResult);
+  } catch (error) {
+    console.error('AI analysis error:', error);
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : 'Unable to connect to the AI analysis service.'
+    );
+  } finally {
     setIsLoading(false);
   }
+}
 
   const modeLabel = mode === 'url' ? 'URL detected' : 'Text claim';
   const modeColor = mode === 'url' ? 'text-blue-400' : 'text-zinc-500 dark:text-zinc-600';
@@ -59,7 +105,7 @@ export default function FactCheckInput({ onResult, isLoading, setIsLoading }: Fa
           id="claim-input"
           value={text}
           onChange={handleTextChange}
-          placeholder="Enter a claim to fact-check or paste a news URL…"
+          placeholder="Enter article text or paste a news URL…"
           rows={4}
           className="w-full px-4 pt-4 pb-2 text-sm text-zinc-800 dark:text-zinc-200
             placeholder-zinc-400 dark:placeholder-zinc-600
@@ -88,7 +134,7 @@ export default function FactCheckInput({ onResult, isLoading, setIsLoading }: Fa
         {isLoading ? (
           <><Loader2 size={15} className="animate-spin" />Analysing…</>
         ) : (
-          <>Verify Claim<ArrowRight size={15} /></>
+          <>Analyse Content<ArrowRight size={15} /></>
         )}
       </button>
     </form>
