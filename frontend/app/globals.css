@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* ============================================================
+   globals.css — NewsVeil global styles
+   Theme: Black & Red
+   Tailwind v4: dark mode is class-based (toggled on <html>).
+   ============================================================ */
+
+/* Enable class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f4f4f5;   /* zinc-100 */
+  --foreground: #09090b;   /* zinc-950 */
+}
+
+/* Mobile safety net: never let the page scroll sideways.
+   "clip" (unlike "hidden") does not break position: sticky. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%; /* stop iOS auto-inflating text */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Media and form controls should never be wider than their container */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* Inputs at 16px+ stop iOS Safari from zooming in when a field is focused.
+   Only applied on small screens so desktop sizing stays the same. */
+@media (max-width: 639px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out both;
+}
