@@ -10,7 +10,7 @@ import FactCheckInput from '@/components/FactCheckInput';
 import ResultsBlock from '@/components/ResultsBlock';
 import CredibilityChart from '@/components/CredibilityChart';
 import ChatPanel from '@/components/ChatPanel';
-import type { FactCheckResult } from '@/lib/mockData';
+import type { FactCheckResult } from '@/lib/types';
 import { Layers, MessageSquare } from 'lucide-react';
 
 export default function HomePage() {
@@ -88,23 +88,7 @@ export default function HomePage() {
               <div className="flex-1 min-w-0">
                 <ResultsBlock result={result} />
               </div>
-              <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-20">
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5">
-                  <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-4">
-                    Credibility Score
-                  </p>
-                  <div className="flex justify-center">
-                    <CredibilityChart
-                      authenticPercent={result.authenticPercent}
-                      confidence={result.confidence}
-                    />
-                  </div>
-                  <p className="mt-4 text-[11px] text-center text-zinc-400 dark:text-zinc-600 leading-relaxed">
-                    Based on {result.sources.length} sources cross-referenced against this claim.
-                  </p>
-                </div>
               </div>
-            </div>
 
             {/* Row 2: chat */}
             <div>

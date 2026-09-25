@@ -6,7 +6,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot } from 'lucide-react';
-import { MOCK_CHAT_REPLIES, type ChatMessage } from '@/lib/mockData';
+import { MOCK_CHAT_REPLIES } from '@/lib/mockData';
+import type { ChatMessage } from '@/lib/types';
 
 interface ChatPanelProps {
   factCheckId: string;

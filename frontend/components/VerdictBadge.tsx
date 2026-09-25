@@ -6,8 +6,7 @@
 // ============================================================
 
 import { CheckCircle, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
-import type { Verdict } from '@/lib/mockData';
-
+import type { Verdict } from '@/lib/types';
 interface VerdictBadgeProps {
   verdict: Verdict;
   size?: 'sm' | 'lg';
@@ -48,8 +47,10 @@ const VERDICT_CONFIG: Record<
 };
 
 export default function VerdictBadge({ verdict, size = 'sm' }: VerdictBadgeProps) {
-  const config = VERDICT_CONFIG[verdict];
-  const { bg, text, border, Icon, label } = config;
+  const normalizedVerdict =  String(verdict);
+
+const config = VERDICT_CONFIG[normalizedVerdict as Verdict];
+const { bg, text, border, Icon, label } = config;
   const isLarge = size === 'lg';
 
   return (

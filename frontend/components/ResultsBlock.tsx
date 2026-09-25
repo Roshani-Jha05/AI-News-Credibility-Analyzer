@@ -1,73 +1,25 @@
 'use client';
 
 // ============================================================
-// components/ResultsBlock.tsx — Black & Red theme
+// components/ResultsBlock.tsx
+// NewsVeil Results
 //
-// Layout (top → bottom):
-//  1. Source Credibility  — VerdictBadge + real/fake % score bar
-//  2. Fact Analysis       — analysis text + real/fake % score bar
-//  3. AI Analysis         — reasoning text + real/fake % score bar
-//  4. Sources Reviewed    — source cards (unchanged)
+// Original working results layout
 // ============================================================
 
 import VerdictBadge from '@/components/VerdictBadge';
 import SourceCard from '@/components/SourceCard';
-import type { FactCheckResult } from '@/lib/mockData';
+import CredibilityChart from '@/components/CredibilityChart';
+
+import type { FactCheckResult } from '@/lib/types';
 
 interface ResultsBlockProps {
   result: FactCheckResult;
 }
 
-// ── Reusable score bar ────────────────────────────────────────
-// Shows "X% Real  ████████░░  Y% Fake"
-
-function ScoreBar({
-  realPercent,
-  label,
-}: {
-  realPercent: number;
-  label?: string;
-}) {
-  const fakePercent = 100 - realPercent;
-
-  // Color the bar: green-ish when mostly real, red when mostly fake
-  const barColor =
-    realPercent >= 70
-      ? 'bg-emerald-500'
-      : realPercent >= 45
-      ? 'bg-amber-400'
-      : 'bg-red-600';
-
-  return (
-    <div className="mt-3">
-      {label && (
-        <p className="text-[10px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-1.5">
-          {label}
-        </p>
-      )}
-      {/* Bar */}
-      <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-        <div
-          className={`h-full rounded-full ${barColor} transition-all duration-700`}
-          style={{ width: `${realPercent}%` }}
-        />
-      </div>
-      {/* Labels */}
-      <div className="flex justify-between mt-1">
-        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-          {realPercent}% Real
-        </span>
-        <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
-          {fakePercent}% Fake
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────
-
-export default function ResultsBlock({ result }: ResultsBlockProps) {
+export default function ResultsBlock({
+  result,
+}: ResultsBlockProps) {
   const {
     verdict,
     confidence,
@@ -75,37 +27,84 @@ export default function ResultsBlock({ result }: ResultsBlockProps) {
     factAnalysis,
     sources,
     claim,
-    sourceCredibilityScore,
-    factAnalysisScore,
-    aiAnalysisScore,
   } = result;
 
   return (
     <div className="space-y-4 animate-fadeIn">
 
-      {/* ── 1. Source Credibility (was "Verdict") ── */}
-      <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      {/* ======================================================
+          TOP SECTION
+          VERDICT + CREDIBILITY SCORE
+      ====================================================== */}
 
-        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-3">
-          Source Credibility
-        </p>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
 
-        {/* Verdict badge */}
-        <VerdictBadge verdict={verdict} size="lg" />
+        {/* ====================================================
+            1. FACT-CHECK VERDICT
+        ==================================================== */}
 
-        {/* Claim echo */}
-        <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-500 italic leading-relaxed border-l-2 border-zinc-200 dark:border-zinc-700 pl-3">
-          &ldquo;{claim.length > 140 ? claim.slice(0, 140) + '…' : claim}&rdquo;
+        <div className="p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+          <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-4">
+            Fact-Check Verdict
+          </p>
+
+          <VerdictBadge
+            verdict={verdict}
+            size="lg"
+          />
+
+          {/* Claim */}
+
+          <div className="mt-5 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed border-l-2 border-zinc-200 dark:border-zinc-700 pl-3">
+
+            <span className="font-semibold text-zinc-400 dark:text-zinc-500">
+              Claim checked:
+            </span>
+
+            <p className="mt-1 italic">
+              &ldquo;
+              {claim.length > 300
+                ? claim.slice(0, 300) + '…'
+                : claim}
+              &rdquo;
+            </p>
+
+          </div>
+
         </div>
 
-        {/* Score bar */}
-        <ScoreBar realPercent={sourceCredibilityScore} label="Credibility Score" />
+        {/* ====================================================
+            2. CREDIBILITY SCORE
+        ==================================================== */}
+
+        <div className="p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+          <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-5">
+            Credibility Score
+          </p>
+
+          <CredibilityChart
+            confidence={confidence}
+          />
+
+          <p className="text-center text-[11px] text-zinc-500 mt-5">
+            Based on {sources.length} source
+            {sources.length !== 1 ? 's' : ''} cross-referenced
+            against this claim.
+          </p>
+
+        </div>
+
       </div>
 
-      {/* ── 2. Fact Analysis (was "Flagged Portion") ── */}
-      <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      {/* ======================================================
+          3. FACT ANALYSIS
+      ====================================================== */}
 
-        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-3">
+      <div className="p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-4">
           Fact Analysis
         </p>
 
@@ -113,51 +112,105 @@ export default function ResultsBlock({ result }: ResultsBlockProps) {
           {factAnalysis}
         </p>
 
-        {/* Score bar */}
-        <ScoreBar realPercent={factAnalysisScore} label="Fact Accuracy Score" />
       </div>
 
-      {/* ── 3. AI Analysis ── */}
-      <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      {/* ======================================================
+          4. ANALYSIS
+      ====================================================== */}
 
-        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-3">
-          AI Analysis
+      <div className="p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-4">
+          Analysis
         </p>
 
         <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
           {reasoning}
         </p>
 
-        {/* Score bar */}
-        <ScoreBar realPercent={aiAnalysisScore} label="AI Confidence Score" />
       </div>
 
-      {/* ── 4. Overall Confidence (kept as-is) ── */}
-      <div className="px-5 py-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <div className="flex items-center justify-between mb-1.5">
+      {/* ======================================================
+          5. MATCH CONFIDENCE
+      ====================================================== */}
+
+      <div className="px-6 py-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+        <div className="flex items-center justify-between mb-2">
+
           <span className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500">
-            Overall Confidence
+            Match Confidence
           </span>
-          <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200">{confidence}%</span>
+
+          <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+            {confidence}%
+          </span>
+
         </div>
-        <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+
+        <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+
           <div
             className="h-full rounded-full bg-red-600 transition-all duration-700"
-            style={{ width: `${confidence}%` }}
+            style={{
+              width: `${Math.min(
+                Math.max(confidence, 0),
+                100
+              )}%`,
+            }}
           />
+
         </div>
+
+        <p className="mt-2 text-[11px] text-zinc-500">
+          Confidence reflects how strongly the retrieved
+          fact-check evidence matches the submitted claim.
+        </p>
+
       </div>
 
-      {/* ── 5. Sources Reviewed ── */}
+      {/* ======================================================
+          6. SOURCES REVIEWED
+      ====================================================== */}
+
       <div>
-        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-2 px-1">
+
+        <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-3 px-1">
           Sources Reviewed ({sources.length})
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {sources.map((source, i) => (
-            <SourceCard key={source.id} source={source} index={i} />
-          ))}
-        </div>
+
+        {sources.length === 0 ? (
+
+          <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No supporting sources were retrieved for this
+              claim.
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+            {sources.map((source, i) => (
+
+              <SourceCard
+                key={
+                  source.id ??
+                  `${source.url}-${i}`
+                }
+                source={source}
+                index={i}
+              />
+
+            ))}
+
+          </div>
+
+        )}
+
       </div>
 
     </div>

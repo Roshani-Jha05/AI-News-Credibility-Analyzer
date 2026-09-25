@@ -7,10 +7,9 @@
 // Phase 4: replace the fake delay + mock with real fetch().
 // ============================================================
 
-import { useState } from 'react';
+import * as React from 'react';
 import { Link2, Loader2, ArrowRight } from 'lucide-react';
-import { MOCK_FACT_CHECK_RESULT, type FactCheckResult } from '@/lib/mockData';
-
+import type { FactCheckResult } from '@/lib/types';
 type InputMode = 'text' | 'url';
 
 interface FactCheckInputProps {
@@ -25,8 +24,8 @@ function detectMode(text: string): InputMode {
 }
 
 export default function FactCheckInput({ onResult, isLoading, setIsLoading }: FactCheckInputProps) {
-  const [text, setText] = useState('');
-  const [mode, setMode] = useState<InputMode>('text');
+  const [text, setText] = React.useState('');
+const [mode, setMode] = React.useState<InputMode>('text');
 
   function handleTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
@@ -34,15 +33,51 @@ export default function FactCheckInput({ onResult, isLoading, setIsLoading }: Fa
     setMode(val.trim() ? detectMode(val) : 'text');
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // NOTE (Phase 1): validation skipped — empty input still returns mock result.
-    // Phase 4 will restore real validation once the API is wired up.
-    setIsLoading(true);
-    await new Promise((res) => setTimeout(res, 1600));
-    onResult(MOCK_FACT_CHECK_RESULT);
+async function handleSubmit(e: any) {
+  e.preventDefault();
+
+  if (!text.trim()) {
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const response = await fetch(
+  `http://127.0.0.1:8000/analyze?claim=${encodeURIComponent(text.trim())}`,
+  {
+      method: 'POST',
+    }
+  );
+
+    if (!response.ok) {
+      throw new Error('Failed to connect to backend');
+    }
+
+  const data = await response.json();
+
+     const result: FactCheckResult = {
+    id: data.id,
+    verdict: data.verdict,
+    confidence: data.confidence,
+    reasoning: data.reasoning,
+    factAnalysis: data.factAnalysis,
+    sources: data.sources,
+    claim: data.claim,
+    authenticPercent: data.authenticPercent,
+    sourceCredibilityScore: data.sourceCredibilityScore,
+    factAnalysisScore: data.factAnalysisScore,
+    aiAnalysisScore: data.aiAnalysisScore,
+  };
+
+onResult(result);
+  } catch (error) {
+    console.error('Backend error:', error);
+    alert('Could not connect to FastAPI.');
+  } finally {
     setIsLoading(false);
   }
+}
 
   const modeLabel = mode === 'url' ? 'URL detected' : 'Text claim';
   const modeColor = mode === 'url' ? 'text-blue-400' : 'text-zinc-500 dark:text-zinc-600';
