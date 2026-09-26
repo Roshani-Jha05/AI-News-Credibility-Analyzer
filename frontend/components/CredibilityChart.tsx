@@ -1,18 +1,27 @@
 'use client';
 
 // ============================================================
-// components/CredibilityChart.tsx — Black & Red theme
-// Authentic = red-600 (theme accent), Questionable = zinc-600
+// components/CredibilityChart.tsx
+// Authentic = green, Questionable = red
 // ============================================================
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface CredibilityChartProps {
   authenticPercent: number;
   confidence: number;
 }
 
-export default function CredibilityChart({ authenticPercent, confidence }: CredibilityChartProps) {
+export default function CredibilityChart({
+  authenticPercent,
+  confidence,
+}: CredibilityChartProps) {
   const questionablePercent = 100 - authenticPercent;
 
   const data = [
@@ -20,8 +29,11 @@ export default function CredibilityChart({ authenticPercent, confidence }: Credi
     { name: 'Questionable', value: questionablePercent },
   ];
 
-  // Red for authentic (theme accent), dark zinc for questionable
-  const COLORS = { Authentic: '#dc2626', Questionable: '#52525b' };
+  // Green for authentic, red for questionable
+  const COLORS = {
+    Authentic: '#16a34a',
+    Questionable: '#dc2626',
+  };
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -47,6 +59,7 @@ export default function CredibilityChart({ authenticPercent, confidence }: Credi
                 />
               ))}
             </Pie>
+
             <Tooltip
               formatter={(value) => [`${value ?? 0}%`, '']}
               contentStyle={{
@@ -65,6 +78,7 @@ export default function CredibilityChart({ authenticPercent, confidence }: Credi
           <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 leading-none">
             {confidence}
           </span>
+
           <span className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mt-0.5">
             conf.
           </span>
@@ -73,14 +87,23 @@ export default function CredibilityChart({ authenticPercent, confidence }: Credi
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+
+        {/* Authentic */}
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-600 inline-block" />
+          <span className="text-green-600 dark:text-green-400">
+            Authentic {authenticPercent}%
+          </span>
+        </span>
+
+        {/* Questionable */}
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" />
-          Authentic {authenticPercent}%
+          <span className="text-red-600 dark:text-red-400">
+            Questionable {questionablePercent}%
+          </span>
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-zinc-500 inline-block" />
-          Questionable {questionablePercent}%
-        </span>
+
       </div>
     </div>
   );

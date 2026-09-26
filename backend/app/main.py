@@ -4,9 +4,13 @@
 
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
+from .source_credibility.credibility import analyze_url, analyze_text
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, model_validator
+
+from .fact_checking.fact_checker import fact_check_claim
+from .fact_checking.claim_extractor import extract_main_claim
 
 from .ai_detection.analyzer import analyze_article
 from .ai_detection.article_extractor import (
@@ -64,6 +68,43 @@ class AnalyzeRequest(BaseModel):
 
         return self
 
+class SourceCredibilityRequest(BaseModel):
+    url: Optional[str] = None
+    text: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_input(self):
+        has_text = bool(self.text and self.text.strip())
+        has_url = bool(self.url and self.url.strip())
+
+        if not has_text and not has_url:
+            raise ValueError("Provide either article text or a URL.")
+
+        if has_text and has_url:
+            raise ValueError("Provide either article text or a URL, not both.")
+
+        return self
+    
+class FactCheckRequest(BaseModel):
+    text: Optional[str] = None
+    url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_input(self):
+        has_text = bool(self.text and self.text.strip())
+        has_url = bool(self.url and self.url.strip())
+
+        if not has_text and not has_url:
+            raise ValueError(
+                "Provide either article text or a URL."
+            )
+
+        if has_text and has_url:
+            raise ValueError(
+                "Provide either article text or a URL, not both."
+            )
+
+        return self
 
 # ============================================================
 # ROOT
@@ -105,9 +146,7 @@ def analyze(request: AnalyzeRequest):
         source_url = request.url.strip()
 
         try:
-            article_text = extract_article_from_url(
-                source_url
-            )
+            article_text = extract_article_from_url(source_url)
 
         except ArticleExtractionError as error:
             raise HTTPException(
@@ -116,34 +155,121 @@ def analyze(request: AnalyzeRequest):
             )
 
     # --------------------------------------------------------
-    # ANALYZE ARTICLE
+    # RUN AI ANALYSIS
     # --------------------------------------------------------
 
     try:
         result = analyze_article(article_text)
 
-        # Add information about where the article came from.
-        result["source"] = {
-            "type": source_type,
-            "url": source_url,
-        }
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI analysis failed: {str(error)}"
+        )
 
-        # For URL requests, return the extracted word count.
-        if source_type == "url":
-            result["source"]["extracted_word_count"] = (
-                len(article_text.split())
+    # --------------------------------------------------------
+    # ADD SOURCE INFORMATION
+    # --------------------------------------------------------
+
+    result["source"] = {
+        "type": source_type,
+        "url": source_url,
+        "extracted_word_count": len(article_text.split()),
+    }
+
+    return result
+
+@app.post("/api/source-credibility")
+def source_credibility(req: SourceCredibilityRequest):
+
+    if req.url:
+        try:
+            return analyze_url(req.url.strip())
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Source credibility analysis failed: {str(error)}"
             )
 
-        return result
+    if req.text:
+        try:
+            return analyze_text(req.text.strip())
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Source credibility analysis failed: {str(error)}"
+            )
 
-    except ValueError as error:
+    raise HTTPException(
+        status_code=400,
+        detail="Provide either article text or a URL."
+    )
+
+# ============================================================
+# FACT CHECKING
+# ============================================================
+
+@app.post("/api/fact-check")
+def fact_check(request: FactCheckRequest):
+
+    article_text = None
+    source_url = None
+
+    # --------------------------------------------------------
+    # TEXT INPUT
+    # --------------------------------------------------------
+
+    if request.text and request.text.strip():
+        article_text = request.text.strip()
+
+    # --------------------------------------------------------
+    # URL INPUT
+    # --------------------------------------------------------
+
+    elif request.url and request.url.strip():
+        source_url = request.url.strip()
+
+        try:
+            article_text = extract_article_from_url(source_url)
+
+        except ArticleExtractionError as error:
+            raise HTTPException(
+                status_code=400,
+                detail=str(error),
+            )
+
+    # --------------------------------------------------------
+    # EXTRACT MAIN CLAIM
+    # --------------------------------------------------------
+
+    try:
+        claim = extract_main_claim(article_text)
+
+    except Exception as error:
         raise HTTPException(
             status_code=400,
-            detail=str(error),
+            detail=f"Claim extraction failed: {str(error)}",
+        )
+
+    # --------------------------------------------------------
+    # FACT CHECK CLAIM
+    # --------------------------------------------------------
+
+    try:
+        result = fact_check_claim(
+            claim,
+            article_url=source_url,
         )
 
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"Analysis failed: {str(error)}",
+            detail=f"Fact checking failed: {str(error)}",
         )
+
+    # --------------------------------------------------------
+    # RETURN RESULT
+    # --------------------------------------------------------
+
+    return result
+    

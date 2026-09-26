@@ -146,13 +146,13 @@ export default function HomePage() {
 
                   <div className="flex justify-center">
                     <CredibilityChart
-                      authenticPercent={result.sourceCredibilityScore}
-                      confidence={result.confidence}
+                       authenticPercent={aiResult.finalCredibilityScore}
+                      confidence={Math.round(aiResult.finalCredibilityScore)}
                     />
                   </div>
 
                   <p className="mt-4 text-[11px] text-center text-zinc-400 dark:text-zinc-600 leading-relaxed">
-                    Based on {result.sources.length} sources cross-referenced against this claim.
+                    Based on source credibility, fact-checking, and AI-content analysis.  
                   </p>
 
                 </div>
@@ -174,7 +174,7 @@ export default function HomePage() {
               </div>
 
               <div className="h-80">
-                <ChatPanel factCheckId={result.id} />
+                <ChatPanel analysis={aiResult} />
               </div>
 
             </div>
