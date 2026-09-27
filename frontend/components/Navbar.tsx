@@ -1,37 +1,81 @@
 'use client';
 
 // ============================================================
-// components/Navbar.tsx — Black & Red theme
+// components/Navbar.tsx — Black & Red theme + Responsive
 // ============================================================
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Sun, Moon, User, Home, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  Sun,
+  Moon,
+  User,
+  Home,
+  LogOut,
+  Menu,
+  X,
+} from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
     { href: '/', label: 'Verify', icon: Home },
     { href: '/profile', label: 'Profile', icon: User },
   ];
 
+  // Close mobile menu whenever the route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Close mobile menu when Escape is pressed
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    setMobileMenuOpen(false);
+    router.push('/login');
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-sm">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
 
         {/* Wordmark */}
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link
+          href="/"
+          className="flex items-center gap-2 group"
+          onClick={() => setMobileMenuOpen(false)}
+        >
           <span className="w-1 h-5 bg-red-600 rounded-sm" />
+
           <span className="font-sans text-xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
             NewsVeil
           </span>
         </Link>
 
-        {/* Right: nav + actions */}
-        <div className="flex items-center gap-1">
+        {/* =====================================================
+            DESKTOP NAVIGATION
+            ===================================================== */}
+        <div className="hidden sm:flex items-center gap-1">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
 
@@ -54,6 +98,7 @@ export default function Navbar() {
 
           <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-1" />
 
+          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             aria-label="Toggle theme"
@@ -62,15 +107,79 @@ export default function Navbar() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
 
-          <Link
-            href="/login"
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
             className="p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             aria-label="Log out"
           >
             <LogOut size={16} />
-          </Link>
+          </button>
+        </div>
+
+        {/* =====================================================
+            MOBILE MENU BUTTON
+            ===================================================== */}
+        <div className="sm:hidden flex items-center gap-1">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            className="p-2 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+
+          {/* Hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+            className="p-2 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {/* =======================================================
+          MOBILE DROPDOWN
+          ======================================================= */}
+      {mobileMenuOpen && (
+        <div className="sm:hidden border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+          <nav className="max-w-6xl mx-auto px-4 py-3 space-y-1">
+            {navLinks.map(({ href, label, icon: Icon }) => {
+              const isActive = pathname === href;
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors
+                    ${
+                      isActive
+                        ? 'bg-red-600 text-white'
+                        : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    }`}
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              );
+            })}
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <LogOut size={17} />
+              Log out
+            </button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
