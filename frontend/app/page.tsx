@@ -174,7 +174,9 @@ export default function HomePage() {
               </div>
 
               <div className="h-80">
-                <ChatPanel analysis={aiResult} />
+                <ChatPanel
+                  analysis={aiResult}
+                />
               </div>
 
             </div>

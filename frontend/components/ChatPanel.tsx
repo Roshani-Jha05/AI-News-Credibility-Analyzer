@@ -15,121 +15,55 @@ interface Message {
   content: string;
 }
 
-function generateReply(
-  question: string,
+function buildAnalysisContext(
   analysis: AIAnalysisResult
 ): string {
-  const q = question.toLowerCase();
+  const source = analysis.sourceCredibility;
+  const factCheck = analysis.factCheck;
+  const features = analysis.linguistic_features;
 
-  const score = analysis.finalCredibilityScore;
-  const sourceScore = analysis.sourceCredibility.score;
-  const verdict = analysis.factCheck.verdict;
-  const aiProbability = Math.round(
-    analysis.ai_probability * 100
-  );
-  const humanProbability = Math.round(
-    analysis.human_probability * 100
-  );
+  const reasons =
+    source.reasons?.length > 0
+      ? source.reasons.map((reason) => `- ${reason}`).join('\n')
+      : 'No source credibility reasons were provided.';
 
-  // Final credibility score
-  if (
-    q.includes('final score') ||
-    q.includes('credibility score') ||
-    q.includes('why did') && q.includes('score') ||
-    q.includes('overall score')
-  ) {
-    return (
-      `The final credibility score is ${score}%. ` +
-      `It combines three parts of the analysis: source credibility ` +
-      `(${sourceScore}% contribution basis), fact-checking ` +
-      `(${verdict}), and the AI-content analysis ` +
-      `(${humanProbability}% human-written probability).`
-    );
-  }
+  return `
+SOURCE CREDIBILITY
+Source: ${source.source}
+Score: ${source.score}%
+Label: ${source.label}
+Input type: ${source.input_type}
 
-  // Source credibility
-  if (
-    q.includes('source') ||
-    q.includes('website') ||
-    q.includes('publisher')
-  ) {
-    return (
-      `The source credibility score is ${sourceScore}%. ` +
-      `The source analysis considers factors such as the domain, ` +
-      `HTTPS usage, available publisher information, and whether ` +
-      `the source is recognised as reliable.`
-    );
-  }
+Source reasons:
+${reasons}
 
-  // Fact checking
-  if (
-    q.includes('fact check') ||
-    q.includes('fact-check') ||
-    q.includes('verdict') ||
-    q.includes('claim')
-  ) {
-    return (
-      `The fact-check result is "${verdict}". ` +
-      `${analysis.factCheck.reasoning || analysis.factCheck.factAnalysis}`
-    );
-  }
+FACT-CHECK
+Verdict: ${factCheck.verdict}
+Match confidence: ${factCheck.confidence}%
+Claim: ${factCheck.claim}
+Fact analysis: ${factCheck.factAnalysis}
+Reasoning: ${factCheck.reasoning}
 
-  // AI detection
-  if (
-    q.includes('ai') ||
-    q.includes('artificial intelligence') ||
-    q.includes('human written') ||
-    q.includes('human-written') ||
-    q.includes('generated')
-  ) {
-    return (
-      `The AI-content detector estimates a ${aiProbability}% ` +
-      `AI-generated probability and a ${humanProbability}% ` +
-      `human-written probability. The detector classified the ` +
-      `article as "${analysis.prediction}" with ${analysis.confidence} confidence.`
-    );
-  }
+AI CONTENT ANALYSIS
+Prediction: ${analysis.prediction}
+Confidence: ${analysis.confidence}
+AI probability: ${(analysis.ai_probability * 100).toFixed(1)}%
+Human probability: ${(analysis.human_probability * 100).toFixed(1)}%
 
-  // Linguistic analysis
-  if (
-    q.includes('linguistic') ||
-    q.includes('perplexity') ||
-    q.includes('burstiness') ||
-    q.includes('writing style')
-  ) {
-    const features = analysis.linguistic_features;
+LINGUISTIC FEATURES
+Perplexity: ${features.perplexity.toFixed(2)}
+Burstiness: ${features.burstiness.toFixed(3)}
+Vocabulary diversity: ${features.vocabulary_diversity.toFixed(3)}
+Sentence count: ${features.sentence_count}
+Average sentence length: ${features.average_sentence_length.toFixed(2)}
+Word count: ${features.word_count}
 
-    return (
-      `The linguistic analysis found a perplexity of ` +
-      `${features.perplexity.toFixed(2)}, burstiness of ` +
-      `${features.burstiness.toFixed(2)}, and vocabulary diversity of ` +
-      `${features.vocabulary_diversity.toFixed(2)}. ` +
-      `${analysis.linguistic_evidence.overall}`
-    );
-  }
+LINGUISTIC EVIDENCE
+Overall: ${analysis.linguistic_evidence.overall}
 
-  // Help / general
-  if (
-    q.includes('help') ||
-    q.includes('what can you') ||
-    q.includes('what does this')
-  ) {
-    return (
-      `I can explain this analysis. You can ask me about the ` +
-      `final credibility score, source credibility, fact-checking ` +
-      `result, AI detection, or the linguistic analysis.`
-    );
-  }
-
-  // Generic fallback
-  return (
-    `Based on the current analysis, the final credibility score ` +
-    `is ${score}%. The article was classified as ` +
-    `"${analysis.prediction}", the fact-check verdict is ` +
-    `"${verdict}", and the source credibility score is ` +
-    `${sourceScore}%. Try asking me why the score was given, ` +
-    `how the AI detection works, or what the fact-check result means.`
-  );
+FINAL CREDIBILITY SCORE
+${analysis.finalCredibilityScore}%
+`;
 }
 
 export default function ChatPanel({
@@ -147,7 +81,7 @@ export default function ChatPanel({
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
-  function handleSubmit(
+  async function handleSubmit(
     e: React.FormEvent
   ) {
     e.preventDefault();
@@ -172,11 +106,38 @@ export default function ChatPanel({
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const reply = generateReply(
-        question,
-        analysis
+    try {
+      const factCheckContext =
+        buildAnalysisContext(analysis);
+
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/chat',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question,
+            fact_check_context: factCheckContext,
+          }),
+        }
       );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.detail === 'string'
+            ? data.detail
+            : 'The chatbot request failed.'
+        );
+      }
+
+      const reply =
+        typeof data?.answer === 'string'
+          ? data.answer
+          : 'Sorry, I could not generate a response.';
 
       setMessages((prev) => [
         ...prev,
@@ -187,8 +148,24 @@ export default function ChatPanel({
         },
       ]);
 
+    } catch (error) {
+      console.error('Chatbot error:', error);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: 'assistant',
+          content:
+            error instanceof Error
+              ? error.message
+              : 'Sorry, I could not connect to the chatbot.',
+        },
+      ]);
+
+    } finally {
       setIsTyping(false);
-    }, 500);
+    }
   }
 
   return (

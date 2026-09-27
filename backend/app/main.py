@@ -18,6 +18,8 @@ from .ai_detection.article_extractor import (
     extract_article_from_url,
 )
 
+from .chatbot import ask_gemini
+
 
 # ============================================================
 # APP
@@ -106,6 +108,9 @@ class FactCheckRequest(BaseModel):
 
         return self
 
+class ChatRequest(BaseModel):
+    question: str
+    fact_check_context: str = ""
 # ============================================================
 # ROOT
 # ============================================================
@@ -273,3 +278,38 @@ def fact_check(request: FactCheckRequest):
 
     return result
     
+@app.post("/api/chat")
+def chat(request: ChatRequest):
+    question = request.question.strip()
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty."
+        )
+
+    try:
+        result = ask_gemini(
+            question=question,
+            fact_check_context=request.fact_check_context,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get(
+                    "answer",
+                    "Gemini could not process the request."
+                ),
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chatbot failed: {str(error)}"
+        )

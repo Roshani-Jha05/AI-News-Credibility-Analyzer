@@ -10,7 +10,7 @@
 //  4. Overall Confidence
 // ============================================================
 
-import VerdictBadge from '@/components/VerdictBadge';
+
 
 import type {
   FactCheckResult,
@@ -87,8 +87,6 @@ export default function ResultsBlock({
 }: ResultsBlockProps) {
 
   const {
-    verdict,
-    factAnalysis,
     claim,
   } = result;
 
@@ -135,9 +133,19 @@ export default function ResultsBlock({
           Source Credibility
         </p>
 
-        <VerdictBadge
-          verdict={verdict}
-        />
+        {aiResult?.sourceCredibility && (
+        <div
+           className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+          aiResult.sourceCredibility.label === 'Reliable'
+           ? 'bg-green-950/40 text-green-400 border-green-800'
+            : aiResult.sourceCredibility.label === 'Unknown'
+          ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
+           : 'bg-red-950/40 text-red-400 border-red-800'
+          }`}
+          >
+       {aiResult.sourceCredibility.label}
+       </div>
+        )}
 
         <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-500 italic leading-relaxed border-l-2 border-zinc-200 dark:border-zinc-700 pl-3">
           &ldquo;
@@ -502,7 +510,7 @@ export default function ResultsBlock({
 
 
       {/* ======================================================
-          4. OVERALL CONFIDENCE
+          4. OVERALL CREDIBILITY
           ====================================================== */}
 
       <div className="px-5 py-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -510,7 +518,7 @@ export default function ResultsBlock({
         <div className="flex items-center justify-between mb-1.5">
 
           <span className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500">
-            Overall Confidence
+            Overall Credibility
           </span>
 
           <span
