@@ -283,8 +283,22 @@ export default function FactCheckInput({
         sourceCredibility:
           sourceResult,
 
-        factCheck:
-          factCheckData,
+        factCheck: {
+          ...factCheckData,
+
+          /*
+           * Preserve the actual numerical fact score returned
+           * by the backend.
+           *
+           * If the backend does not provide it for any reason,
+           * use the same fallback logic used by the final score.
+           */
+          factScore:
+            Number(
+              factCheckData.factScore ??
+              getFactScore(factCheckData.verdict)
+            ),
+        },
 
         finalCredibilityScore,
       };
@@ -316,6 +330,11 @@ export default function FactCheckInput({
       console.log(
         'Fact verdict:',
         factCheckData.verdict
+      );
+
+      console.log(
+        'Fact score:',
+        factCheckData.factScore
       );
 
       console.log(

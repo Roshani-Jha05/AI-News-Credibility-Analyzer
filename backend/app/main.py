@@ -9,8 +9,7 @@ from .source_credibility.credibility import analyze_url, analyze_text
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, model_validator
 
-from .fact_checking.fact_checker import fact_check_claim
-from .fact_checking.claim_extractor import extract_main_claim
+from .fact_checking.fact_checker import fact_check_article
 
 from .ai_detection.analyzer import analyze_article
 from .ai_detection.article_extractor import (
@@ -46,7 +45,7 @@ app.add_middleware(
 )
 
 # ============================================================
-# REQUEST MODEL
+# REQUEST MODELS
 # ============================================================
 
 class AnalyzeRequest(BaseModel):
@@ -70,6 +69,7 @@ class AnalyzeRequest(BaseModel):
 
         return self
 
+
 class SourceCredibilityRequest(BaseModel):
     url: Optional[str] = None
     text: Optional[str] = None
@@ -86,7 +86,8 @@ class SourceCredibilityRequest(BaseModel):
             raise ValueError("Provide either article text or a URL, not both.")
 
         return self
-    
+
+
 class FactCheckRequest(BaseModel):
     text: Optional[str] = None
     url: Optional[str] = None
@@ -108,9 +109,12 @@ class FactCheckRequest(BaseModel):
 
         return self
 
+
 class ChatRequest(BaseModel):
     question: str
     fact_check_context: str = ""
+
+
 # ============================================================
 # ROOT
 # ============================================================
@@ -134,17 +138,9 @@ def analyze(request: AnalyzeRequest):
     source_url = None
     article_text = None
 
-    # --------------------------------------------------------
-    # TEXT INPUT
-    # --------------------------------------------------------
-
     if request.text and request.text.strip():
         source_type = "text"
         article_text = request.text.strip()
-
-    # --------------------------------------------------------
-    # URL INPUT
-    # --------------------------------------------------------
 
     elif request.url and request.url.strip():
         source_type = "url"
@@ -159,10 +155,6 @@ def analyze(request: AnalyzeRequest):
                 detail=str(error),
             )
 
-    # --------------------------------------------------------
-    # RUN AI ANALYSIS
-    # --------------------------------------------------------
-
     try:
         result = analyze_article(article_text)
 
@@ -172,10 +164,6 @@ def analyze(request: AnalyzeRequest):
             detail=f"AI analysis failed: {str(error)}"
         )
 
-    # --------------------------------------------------------
-    # ADD SOURCE INFORMATION
-    # --------------------------------------------------------
-
     result["source"] = {
         "type": source_type,
         "url": source_url,
@@ -184,12 +172,18 @@ def analyze(request: AnalyzeRequest):
 
     return result
 
+
+# ============================================================
+# SOURCE CREDIBILITY
+# ============================================================
+
 @app.post("/api/source-credibility")
 def source_credibility(req: SourceCredibilityRequest):
 
     if req.url:
         try:
             return analyze_url(req.url.strip())
+
         except Exception as error:
             raise HTTPException(
                 status_code=500,
@@ -199,6 +193,7 @@ def source_credibility(req: SourceCredibilityRequest):
     if req.text:
         try:
             return analyze_text(req.text.strip())
+
         except Exception as error:
             raise HTTPException(
                 status_code=500,
@@ -209,6 +204,7 @@ def source_credibility(req: SourceCredibilityRequest):
         status_code=400,
         detail="Provide either article text or a URL."
     )
+
 
 # ============================================================
 # FACT CHECKING
@@ -244,26 +240,14 @@ def fact_check(request: FactCheckRequest):
             )
 
     # --------------------------------------------------------
-    # EXTRACT MAIN CLAIM
+    # MULTI-CLAIM FACT CHECKING
     # --------------------------------------------------------
 
     try:
-        claim = extract_main_claim(article_text)
-
-    except Exception as error:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Claim extraction failed: {str(error)}",
-        )
-
-    # --------------------------------------------------------
-    # FACT CHECK CLAIM
-    # --------------------------------------------------------
-
-    try:
-        result = fact_check_claim(
-            claim,
+        result = fact_check_article(
+            article_text=article_text,
             article_url=source_url,
+            max_claims=3,
         )
 
     except Exception as error:
@@ -272,14 +256,16 @@ def fact_check(request: FactCheckRequest):
             detail=f"Fact checking failed: {str(error)}",
         )
 
-    # --------------------------------------------------------
-    # RETURN RESULT
-    # --------------------------------------------------------
-
     return result
-    
+
+
+# ============================================================
+# CHATBOT
+# ============================================================
+
 @app.post("/api/chat")
 def chat(request: ChatRequest):
+
     question = request.question.strip()
 
     if not question:

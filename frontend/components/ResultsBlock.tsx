@@ -7,10 +7,8 @@
 //  1. Source Credibility
 //  2. Fact Analysis
 //  3. AI Analysis — REAL AI ENGINE RESULT
-//  4. Overall Confidence
+//  4. Overall Credibility
 // ============================================================
-
-
 
 import type {
   FactCheckResult,
@@ -105,6 +103,33 @@ export default function ResultsBlock({
     aiResult?.sourceCredibility?.score ?? 0;
 
   // ------------------------------------------------------------
+  // FACT ACCURACY SCORE
+  //
+  // This is separate from the old Match Confidence value.
+  //
+  // True              = 100
+  // False             = 0
+  // Misleading        = 50
+  // Unverifiable      = 50
+  // No fact-check     = 50
+  // ------------------------------------------------------------
+
+const factAccuracyScore = aiResult?.factCheck
+  ? Number(
+      (
+        aiResult.factCheck as typeof aiResult.factCheck & {
+          factScore?: number;
+        }
+      ).factScore ??
+        (aiResult.factCheck.verdict === "True"
+          ? 100
+          : aiResult.factCheck.verdict === "False"
+          ? 0
+          : 50)
+    )
+  : 50;
+
+  // ------------------------------------------------------------
   // LINGUISTIC FEATURES
   // ------------------------------------------------------------
 
@@ -134,17 +159,17 @@ export default function ResultsBlock({
         </p>
 
         {aiResult?.sourceCredibility && (
-        <div
-           className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-          aiResult.sourceCredibility.label === 'Reliable'
-           ? 'bg-green-950/40 text-green-400 border-green-800'
-            : aiResult.sourceCredibility.label === 'Unknown'
-          ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
-           : 'bg-red-950/40 text-red-400 border-red-800'
-          }`}
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+              aiResult.sourceCredibility.label === 'Reliable'
+                ? 'bg-green-950/40 text-green-400 border-green-800'
+                : aiResult.sourceCredibility.label === 'Unknown'
+                ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                : 'bg-red-950/40 text-red-400 border-red-800'
+            }`}
           >
-       {aiResult.sourceCredibility.label}
-       </div>
+            {aiResult.sourceCredibility.label}
+          </div>
         )}
 
         <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-500 italic leading-relaxed border-l-2 border-zinc-200 dark:border-zinc-700 pl-3">
@@ -269,48 +294,30 @@ export default function ResultsBlock({
 
           </div>
 
-          {/* MATCH CONFIDENCE */}
+          {/* FACT ACCURACY SCORE */}
 
           <div className="mt-6">
 
-            <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500 mb-3">
+              Fact Accuracy Score
+            </p>
 
-              <p className="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 dark:text-zinc-500">
-                Match Confidence
-              </p>
-
-              <span
-                className={`text-sm font-bold ${
-                  aiResult.factCheck.verdict === 'True'
-                    ? 'text-emerald-500'
-                    : aiResult.factCheck.verdict === 'False'
-                    ? 'text-red-500'
-                    : 'text-zinc-700 dark:text-zinc-200'
-                }`}
-              >
-                {aiResult.factCheck.confidence}%
-              </span>
-
-            </div>
-
-            <div className="h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+            <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
 
               <div
                 className={`h-full rounded-full transition-all duration-700 ${
-                  aiResult.factCheck.verdict === 'False'
-                    ? 'bg-red-600'
-                    : aiResult.factCheck.verdict === 'True'
+                  factAccuracyScore >= 70
                     ? 'bg-emerald-500'
-                    : aiResult.factCheck.verdict === 'Misleading'
-                    ? 'bg-amber-400'
-                    : 'bg-zinc-500'
+                    : factAccuracyScore < 45
+                    ? 'bg-red-600'
+                    : 'bg-amber-400'
                 }`}
                 style={{
                   width: `${Math.max(
                     0,
                     Math.min(
                       100,
-                      aiResult.factCheck.confidence
+                      factAccuracyScore
                     )
                   )}%`,
                 }}
@@ -318,9 +325,21 @@ export default function ResultsBlock({
 
             </div>
 
+            <div className="flex justify-between mt-1">
+
+              <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                {factAccuracyScore}% Verified
+              </span>
+
+              <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">
+                {100 - factAccuracyScore}% Unverified
+              </span>
+
+            </div>
+
             <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-600">
-              Confidence reflects how strongly the retrieved fact-check evidence
-              matches the submitted claim.
+              This score is used as the fact-checking component
+              of the overall credibility score.
             </p>
 
           </div>

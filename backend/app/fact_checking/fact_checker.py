@@ -10,6 +10,8 @@ from difflib import SequenceMatcher
 import requests
 from dotenv import load_dotenv
 
+from .claim_extractor import extract_claims
+
 
 # ============================================================
 # ENVIRONMENT
@@ -729,4 +731,178 @@ def fact_check_claim(
         ),
         "sources": sources,
         "claim": claim,
+    }
+
+
+# ============================================================
+# FACT CHECK ARTICLE
+# ============================================================
+
+def fact_check_article(
+    article_text: str,
+    article_url: str | None = None,
+    max_claims: int = 3
+) -> dict:
+    """
+    Fact-check multiple candidate claims from an article.
+
+    The existing fact_check_claim() function is used for
+    each individual claim.
+    """
+
+    if not article_text or not article_text.strip():
+        raise FactCheckError(
+            "Article text cannot be empty."
+        )
+
+    try:
+
+        claims = extract_claims(
+            article_text,
+            max_claims=max_claims,
+        )
+
+    except ValueError as error:
+
+        raise FactCheckError(str(error))
+
+    results = []
+
+    for claim in claims:
+
+        try:
+
+            result = fact_check_claim(
+                claim=claim,
+                article_url=article_url,
+            )
+
+            # Safety check:
+            # fact_check_claim() should always return a
+            # dictionary, but don't let an unexpected None
+            # value crash the entire article analysis.
+            if result is not None:
+
+                result["_candidate_claim"] = claim
+
+                results.append(result)
+
+        except FactCheckError:
+
+            # One failed claim should not stop
+            # the remaining claims.
+            continue
+
+    # ========================================================
+    # NO USABLE RESULTS
+    # ========================================================
+
+    if not results:
+
+        return {
+            "verdict": "No fact-check found",
+            "confidence": 0,
+            "factScore": 50,
+            "reasoning": (
+                "No fact-check could be obtained for "
+                "the extracted claims."
+            ),
+            "factAnalysis": (
+                "The article could not be matched against "
+                "available published fact-checks."
+            ),
+            "claimExplanation": (
+                "No relevant published fact-check was found."
+            ),
+            "sources": [],
+            "claim": claims[0],
+            "checkedClaims": claims,
+        }
+
+    # ========================================================
+    # SELECT STRONGEST RESULT
+    # ========================================================
+
+    verdict_priority = {
+        "False": 4,
+        "Misleading": 3,
+        "True": 2,
+        "Unverifiable": 1,
+        "No fact-check found": 0,
+    }
+
+    def result_strength(result):
+
+        return (
+            verdict_priority.get(
+                result.get("verdict"),
+                0,
+            ),
+            result.get(
+                "confidence",
+                0,
+            ),
+        )
+
+    useful_results = [
+        result
+        for result in results
+        if result.get("verdict")
+        != "No fact-check found"
+    ]
+
+    if useful_results:
+
+        best_result = max(
+            useful_results,
+            key=result_strength,
+        )
+
+    else:
+
+        best_result = max(
+            results,
+            key=lambda result: result.get(
+                "confidence",
+                0,
+            ),
+        )
+
+    verdict = best_result.get(
+        "verdict",
+        "No fact-check found",
+    )
+
+    # ========================================================
+    # CONVERT VERDICT TO NUMERICAL SCORE
+    # ========================================================
+
+    if verdict == "True":
+
+        fact_score = 100
+
+    elif verdict == "False":
+
+        fact_score = 0
+
+    elif verdict == "Misleading":
+
+        fact_score = 50
+
+    elif verdict == "Unverifiable":
+
+        fact_score = 50
+
+    else:
+
+        fact_score = 50
+
+    # ========================================================
+    # RETURN COMBINED RESULT
+    # ========================================================
+
+    return {
+        **best_result,
+        "factScore": fact_score,
+        "checkedClaims": claims,
     }
